@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class Repository(Protocol):
+    def get(self, item_id: int): ...
+    def add(self, item): ...

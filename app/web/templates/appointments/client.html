@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Mis citas · StyleAgenda{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><div><p class="text-uppercase text-primary small fw-bold mb-1">Portal del cliente</p><h1 class="h2 mb-0">Hola, {{ user.name }}</h1></div></div>
+{% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger"><strong>No se pudo completar la operación.</strong> {{ error }}. El horario se valida con intervalos semiabiertos; puedes escoger otro turno.</div>{% endif %}
+<div class="row g-4">
+  <div class="col-lg-7"><section class="mb-4"><h2 class="h4">Nuestros servicios</h2><div class="row g-3">
+    {% for service in services %}<div class="col-md-6"><div class="card h-100 service-card"><div class="card-body"><h3 class="h5">{{ service.name }}</h3><p class="text-secondary">{{ service.description }}</p><span class="badge text-bg-light">{{ service.duration_minutes }} min</span><span class="fw-bold ms-2">${{ "{:,.0f}".format(service.base_price) }} COP</span></div></div></div>{% endfor %}
+  </div></section>
+  <section><h2 class="h4">Barberos</h2><div class="d-flex flex-wrap gap-2">{% for barber in barbers %}<span class="badge rounded-pill text-bg-dark p-2">✂ {{ barber.name }}</span>{% endfor %}</div></section></div>
+  <div class="col-lg-5"><section class="card card-body shadow-sm sticky-lg-top booking-card"><h2 class="h4">Reserva una cita</h2>
+    <form method="post" action="/appointments/book" id="booking-form">
+      <label class="form-label" for="client-name">Cliente</label><input id="client-name" class="form-control mb-3" value="{{ user.name }}" disabled>
+      <label class="form-label" for="service-id">Servicio</label><select class="form-select mb-3" name="service_id" id="service-id" required><option value="">Elige un servicio</option>{% for service in services %}<option value="{{ service.id }}">{{ service.name }} — ${{ "{:,.0f}".format(service.base_price) }} · {{ service.duration_minutes }} min</option>{% endfor %}</select>
+      <label class="form-label" for="barber-id">Barbero</label><select class="form-select mb-3" name="barber_id" id="barber-id" required><option value="">Elige un barbero</option>{% for barber in barbers %}<option value="{{ barber.id }}">{{ barber.name }}</option>{% endfor %}</select>
+      <label class="form-label" for="start-at">Fecha y hora</label><input class="form-control mb-3" type="datetime-local" name="start_at" id="start-at" required>
+      <div class="quote-box rounded p-3 mb-3" id="quote-box" aria-live="polite">Selecciona servicio y horario para calcular el precio.</div>
+      <button class="btn btn-primary w-100">Confirmar reserva</button>
+    </form></section></div>
+</div>
+<section class="mt-5"><h2 class="h4 mb-3">Mis citas</h2>
+{% if appointments %}<div class="table-responsive"><table class="table align-middle bg-white"><thead><tr><th>Fecha</th><th>Servicio</th><th>Barbero</th><th>Estado</th><th>Precio</th><th>Acciones</th></tr></thead><tbody>
+{% for appointment in appointments %}<tr><td>{{ appointment.start_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ service_names.get(appointment.service_id, 'Servicio') }}</td><td>{{ barber_names.get(appointment.barber_id, 'Barbero') }}</td><td><span class="badge {{ 'text-bg-success' if appointment.status.value == 'CONFIRMED' else 'text-bg-secondary' }}">{{ appointment.status.value }}</span></td><td>${{ "{:,.0f}".format(appointment.price) }}</td><td>{% if appointment.status.value == 'CONFIRMED' %}<div class="d-flex gap-2"><form method="post" action="/appointments/{{ appointment.id }}/reschedule" class="d-flex gap-1"><input class="form-control form-control-sm" type="datetime-local" name="start_at" required aria-label="Nueva fecha y hora"><button class="btn btn-sm btn-outline-primary">Reprogramar</button></form><form method="post" action="/appointments/{{ appointment.id }}/cancel" onsubmit="return confirm('¿Cancelar esta cita?')"><button class="btn btn-sm btn-outline-danger">Cancelar</button></form></div>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="text-secondary">Aún no tienes citas. Reserva tu primer servicio.</p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/appointments.js"></script>{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Mi agenda · StyleAgenda{% endblock %}
+{% block content %}<p class="text-uppercase text-primary small fw-bold mb-1">Portal del barbero</p><h1 class="h2 mb-4">Agenda de {{ user.name }}</h1>
+<div class="card card-body shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Fecha</th><th>Horario</th><th>Cliente</th><th>Servicio</th><th>Estado</th></tr></thead><tbody>
+{% for item in appointments %}<tr><td>{{ item.appointment.start_at.strftime('%d/%m/%Y') }}</td><td>{{ item.appointment.start_at.strftime('%H:%M') }}–{{ item.appointment.end_at.strftime('%H:%M') }}</td><td>{{ item.client.name }}</td><td>{{ item.service.name }}</td><td><span class="badge {{ 'text-bg-success' if item.appointment.status.value == 'CONFIRMED' else 'text-bg-secondary' }}">{{ item.appointment.status.value }}</span></td></tr>{% else %}<tr><td colspan="5" class="text-center text-secondary py-4">No tienes citas asignadas.</td></tr>{% endfor %}</tbody></table></div></div>{% endblock %}

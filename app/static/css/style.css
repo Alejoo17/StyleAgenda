@@ -1,0 +1,10 @@
+body { color: #20242a; }
+.min-vh-75 { min-height: 75vh; }
+.brand-mark { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: #212529; color: white; font-weight: 800; font-size: 1.3rem; }
+.service-card, .metric-card { border: 0; box-shadow: 0 4px 20px rgba(25, 35, 45, .06); }
+.booking-card { top: 1rem; }
+.quote-box { background: #f3f5f7; min-height: 56px; }
+.event-log { max-height: 360px; overflow-y: auto; background: #111820; border-radius: .5rem; padding: .75rem; color: #d7e2ec; font: .78rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.event-line { border-bottom: 1px solid #28323d; padding: .2rem 0; overflow-wrap: anywhere; }
+.event-line time { color: #85c7ff; }
+@media (max-width: 767px) { .booking-card { position: static !important; } }
