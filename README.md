@@ -1,55 +1,133 @@
 # StyleAgenda
 
-Aplicación web de gestión y reservas para barbería. El backend usa **Python 3.12+**, **FastAPI**, **SQLAlchemy 2.x** y **SQLite**; los portales HTML usan **Jinja2**, **Bootstrap 5** y JavaScript.
+Aplicación web de gestión y reservas para una barbería. El backend utiliza **Python 3.12 o superior**, **FastAPI**, **SQLAlchemy 2.x** y **SQLite**. Los portales web usan **Jinja2**, **Bootstrap 5** y JavaScript.
 
 ## Arquitectura
 
-La solución organiza el código en capas: `app/web/` recibe peticiones HTTP y presenta las vistas; `app/services/` coordina los casos de uso; `app/domain/` contiene reglas, entidades y patrones; `app/repositories/` encapsula consultas; `app/infrastructure/` implementa SQLite y adaptadores de notificación; `app/core/` contiene configuración, seguridad y dependencias.
+El proyecto organiza el código en capas:
 
-Las rutas web son `/auth/login`, `/appointments/` (cliente), `/barbers/` (barbero) y `/admin/` (administrador). Las sesiones se firman con `SessionMiddleware`, guardan el ID de usuario, usan cookies `HttpOnly` con `SameSite=Lax` y expiran a las ocho horas. Las vistas vuelven a comprobar el usuario contra SQLite y aplican control de acceso por rol. En despliegue HTTPS, establecer `STYLEAGENDA_SESSION_HTTPS_ONLY=true` y reemplazar `STYLEAGENDA_SESSION_SECRET` por una clave aleatoria privada. Los accesos rápidos del login son para demostración local.
+- `app/web/`: rutas HTTP, esquemas y portales.
+- `app/services/`: coordinación de los casos de uso.
+- `app/domain/`: entidades, reglas de negocio, tarifas y contratos de notificación.
+- `app/repositories/`: consultas y persistencia de usuarios, servicios y citas.
+- `app/infrastructure/`: SQLite, modelos ORM y adaptadores de notificación.
+- `app/core/`: configuración, seguridad, autenticación y dependencias.
+- `tests/unit/` y `tests/integration/`: pruebas unitarias y de integración.
 
-## Patrones de diseño en código
+Las rutas principales de la interfaz son `/auth/login`, `/appointments/` (cliente), `/barbers/` (barbero) y `/admin/` (administrador). La API se publica bajo `/api`; la documentación interactiva está en `/docs`.
 
-- **Singleton:** `app/infrastructure/sqlite_database.py` — `SQLiteDatabase` mantiene un motor y fábrica de sesiones únicos. Cada solicitud abre su propia sesión.
-- **Factory Method:** `app/services/user_factory.py` — `UserFactory` crea `ADMIN`, `BARBER` o `CLIENT`; `app/services/service_factory.py` — `ServiceFactory` construye `Corte`, `Barba` o `Combo`.
-- **Strategy:** `app/domain/pricing/strategy.py` define `PricingStrategy`; `regular.py`, `frequent_client.py` y `weekday_promotion.py` implementan las tarifas concretas. `app/services/pricing_service.py` elige estrategia: promoción de lunes a viernes (15%) prevalece; si no, cliente frecuente (10% tras cinco citas); de lo contrario, tarifa regular. El portal consulta esta misma lógica para mostrar precio y nombre de estrategia.
-- **Observer:** `app/domain/notifications/appointment_subject.py` mantiene observadores; `app/domain/notifications/observer.py` define la interfaz; `app/infrastructure/notifications/log_listener.py` y `email_listener.py` escuchan confirmación, reprogramación y cancelación. El listener email es demostrativo y registra el aviso (no envía correo). `event_log.py` mantiene un buffer en memoria y el panel administrador lo muestra mediante Server-Sent Events.
-- **Repository:** `app/repositories/` encapsula lecturas y escrituras SQLAlchemy para usuarios, servicios y citas.
-- **Capas / MVC:** routers y esquemas en `app/web/`, plantillas en `app/web/templates/`, JavaScript/CSS en `app/static/`, reglas de negocio en `app/services/` y `app/domain/`.
+## Patrones de diseño y conceptos aplicados
 
-## Instalación y ejecución local (PowerShell)
+- **Singleton:** `app/infrastructure/sqlite_database.py` mantiene un motor y una fábrica de sesiones. Cada unidad de trabajo obtiene su propia sesión.
+- **Fábricas:** `UserFactory` crea usuarios `ADMIN`, `BARBER` o `CLIENT`; `ServiceFactory` construye servicios `Corte`, `Barba` o `Combo`. En el código son fábricas parametrizadas.
+- **Strategy:** `PricingStrategy` define el contrato de cálculo. Se implementan tarifa regular, descuento de cliente frecuente y promoción entre semana. La promoción de lunes a viernes (15 %) prevalece; en otro caso se aplica el descuento frecuente (10 %) o la tarifa regular.
+- **Observer:** `AppointmentSubject` notifica cambios de citas a `LogListener` y `EmailListener`. El aviso por correo es demostrativo y queda registrado; no envía correo real. El panel administrativo muestra eventos mediante Server-Sent Events (SSE).
+- **Repository y capas:** los repositorios encapsulan consultas SQLAlchemy y las rutas separan presentación de reglas de negocio.
+
+## Requisitos previos
+
+- Python **3.12 o superior**.
+- Conexión a Internet durante la instalación de dependencias de PyPI.
+- PowerShell en Windows, o una terminal de macOS/Linux.
+
+Ejecute los comandos desde la carpeta raíz del proyecto, donde están `pyproject.toml`, `seed.py` y `README.md`.
+
+## Instalación y ejecución en Windows
+
+### 1. Extraer el código
+
+Descomprima `StyleAgenda_codigo.zip` en una carpeta, por ejemplo `C:\StyleAgenda`, y abra PowerShell en esa carpeta. Confirme que `pyproject.toml` aparece al ejecutar `Get-ChildItem`.
+
+### 2. Crear un entorno e instalar dependencias
 
 ```powershell
-python --version  # debe ser 3.12 o superior
-python -m venv .venv
+py -3.12 --version
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Poblar la base SQLite con un administrador, tres barberos, ocho clientes, cuatro servicios y ocho citas iniciales:
+Si el equipo tiene otra versión compatible de Python (3.13 o posterior), sustituya `-3.12` por la versión instalada, por ejemplo `py -3.13`. Si PowerShell bloquea la activación del entorno, no cambie la política del equipo: use el ejecutable del entorno directamente:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
+
+En los siguientes pasos, use `python` si activó el entorno; si no, anteponga `.\.venv\Scripts\python.exe` al comando.
+
+### 3. Crear la base de datos y los datos de demostración
 
 ```powershell
 python seed.py
 ```
 
-Todas las cuentas usan `StyleAgenda123!`:
+Este comando crea el esquema SQLite y carga, si aún no existen, las cuentas de demostración, cuatro servicios y citas iniciales. La base de datos local queda en `data/styleagenda.db`. Ejecútelo desde la raíz del proyecto para que la aplicación y el script usen la misma base.
 
-- Admin: `admin@styleagenda.local`
-- Barberos: `barbero1@styleagenda.local`, `barbero2@styleagenda.local`, `barbero3@styleagenda.local`
-- Clientes: `cliente1@styleagenda.local` hasta `cliente8@styleagenda.local`
-
-Iniciar la aplicación:
+### 4. Iniciar la aplicación
 
 ```powershell
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
-Abrir <http://127.0.0.1:8000/> para iniciar sesión; `/docs` muestra la API y `/health` informa estado. La cookie de sesión se configura localmente sin requisito HTTPS. Para otro secreto o base de datos, copiar `.env.example` a `.env` y configurar `STYLEAGENDA_SESSION_SECRET`, `STYLEAGENDA_SESSION_HTTPS_ONLY` o `STYLEAGENDA_DATABASE_URL`.
+Abra estas direcciones en el navegador:
 
-## Pruebas
+- Aplicación e inicio de sesión: <http://127.0.0.1:8000/>
+- Estado de la aplicación: <http://127.0.0.1:8000/health>
+- Documentación de la API: <http://127.0.0.1:8000/docs>
+
+Para detener el servidor, vuelva a PowerShell y presione **Ctrl+C**.
+
+## Instalación y ejecución en macOS o Linux
+
+Desde la carpeta raíz del proyecto:
+
+```bash
+python3.12 --version
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+python seed.py
+python -m uvicorn app.main:app --reload
+```
+
+Luego abra <http://127.0.0.1:8000/>. Detenga el servidor con **Ctrl+C**.
+
+## Cuentas de demostración
+
+Todas las cuentas creadas por `seed.py` usan la contraseña `StyleAgenda123!`.
+
+| Rol | Usuario |
+| --- | --- |
+| Administrador | `admin@styleagenda.local` |
+| Barberos | `barbero1@styleagenda.local`, `barbero2@styleagenda.local`, `barbero3@styleagenda.local` |
+| Clientes | `cliente1@styleagenda.local` hasta `cliente8@styleagenda.local` |
+
+Los accesos rápidos de la pantalla de inicio de sesión son para demostraciones locales.
+
+## Ejecutar las pruebas
+
+Con el entorno virtual activo:
 
 ```powershell
 python -m pytest -q
 ```
 
-La suite comprueba singleton, fábricas, estrategias de precios, intervalos semiabiertos, cancelaciones, reprogramación, eventos Observer y persistencia.
+En macOS/Linux se usa el mismo comando. Muestre y reporte exactamente el resultado que aparezca en esa máquina; el número de pruebas puede variar si el código o las dependencias cambian.
+
+La suite cubre Singleton, fábricas, estrategias de precios, intervalos semiabiertos, cancelación, reprogramación, eventos Observer, persistencia y sesiones web.
+
+## Configuración opcional
+
+Para cambiar la configuración local, copie `.env.example` a `.env` y ajuste las variables necesarias:
+
+- `STYLEAGENDA_DATABASE_URL`: URL de la base de datos. Por defecto usa `sqlite:///./data/styleagenda.db`.
+- `STYLEAGENDA_SESSION_SECRET`: clave usada para firmar la sesión.
+- `STYLEAGENDA_SESSION_HTTPS_ONLY`: use `false` para una demostración local por HTTP. En un despliegue HTTPS debe configurarse `true` y emplearse una clave privada aleatoria.
+
+No reutilice la clave de ejemplo ni las cuentas de demostración en un despliegue público. El correo del `EmailListener` es simulado y el registro SSE se conserva en memoria.
+
+
+
